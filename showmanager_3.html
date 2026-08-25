@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#14120F; --panel:#1E1B17; --panel-2:#25211B; --line:#38332B;
+    --ink:#F2EDE4; --ink-dim:#A69C8D; --amber:#E8A33D; --amber-dim:#7A5A26;
+    --green:#6B9B6E; --red:#C2493E; --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,sans-serif; min-height:100vh;}
+  .display{font-family:'Barlow Condensed',sans-serif; letter-spacing:0.02em;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .app{display:flex; min-height:100vh;}
+  .sidebar{width:220px; flex-shrink:0; background:#100E0B; border-right:1px solid var(--line); display:flex; flex-direction:column; padding:20px 0;}
+  .brand{padding:0 20px 20px 20px; border-bottom:1px solid var(--line); margin-bottom:12px;}
+  .brand-tag{display:inline-block; background:var(--amber); color:#1a1509; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; letter-spacing:0.12em; padding:2px 7px; border-radius:3px; margin-bottom:8px;}
+  .brand h1{font-family:'Barlow Condensed',sans-serif; font-size:24px; font-weight:700; margin:0;}
+  .brand p{margin:4px 0 0 0; font-size:12px; color:var(--ink-dim);}
+  nav{display:flex; flex-direction:column; gap:2px; padding:0 10px;}
+  .nav-btn{display:flex; align-items:center; gap:10px; background:none; border:none; color:var(--ink-dim); font-family:'Inter',sans-serif; font-size:14px; font-weight:500; padding:10px 12px; border-radius:8px; cursor:pointer; text-align:left; width:100%; transition:background .15s, color .15s;}
+  .nav-btn:hover{background:var(--panel); color:var(--ink);}
+  .nav-btn.active{background:var(--panel-2); color:var(--amber);}
+  .nav-num{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-dim); width:16px;}
+  .nav-btn.active .nav-num{color:var(--amber);}
+  .status-pill{margin:auto 14px 0 14px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:12px; color:var(--ink-dim);}
+  .status-dot{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--red); margin-right:6px;}
+  .status-dot.on{background:var(--green);}
+  main{flex:1; padding:32px 40px; max-width:1240px;}
+  .page{display:none;}
+  .page.active{display:block;}
+  h2.page-title{font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:700; margin:0 0 4px 0;}
+  .page-sub{color:var(--ink-dim); font-size:14px; margin:0 0 24px 0;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px; margin-bottom:20px;}
+  .card h3{font-family:'Barlow Condensed',sans-serif; font-size:19px; font-weight:600; margin:0 0 14px 0; display:flex; align-items:center; justify-content:space-between;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  .grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px;}
+  label{display:block; font-size:12px; color:var(--ink-dim); margin-bottom:5px; margin-top:12px;}
+  label:first-child{margin-top:0;}
+  input[type=text], input[type=number], select, textarea{width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:9px 10px; font-size:14px; font-family:'Inter',sans-serif;}
+  input:focus, select:focus, textarea:focus{outline:1px solid var(--amber); border-color:var(--amber);}
+  button{font-family:'Inter',sans-serif; font-weight:600; font-size:13px; border-radius:7px; padding:9px 16px; cursor:pointer; border:1px solid transparent;}
+  .btn-primary{background:var(--amber); color:#1a1509; border-color:var(--amber);}
+  .btn-primary:hover{background:#f0ae4c;}
+  .btn-ghost{background:transparent; color:var(--ink); border-color:var(--line);}
+  .btn-ghost:hover{border-color:var(--ink-dim);}
+  .btn-danger{background:transparent; color:var(--red); border-color:var(--red);}
+  .btn-danger:hover{background:rgba(194,73,62,0.12);}
+  .btn-sm{padding:5px 10px; font-size:12px;}
+  button:disabled{opacity:0.4; cursor:not-allowed;}
+  .btn-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; font-family:'Barlow Condensed',sans-serif; font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-dim); border-bottom:1px solid var(--line); padding:8px 8px; font-weight:600;}
+  td{padding:6px 8px; border-bottom:1px solid #26221c;}
+  tr:hover td{background:rgba(255,255,255,0.02);}
+  td input, td select{padding:6px 7px; font-size:12.5px;}
+  .bib{display:inline-flex; align-items:center; gap:6px; background:var(--panel-2); border:1px solid var(--amber-dim); border-radius:5px; padding:2px 8px 2px 4px; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--amber);}
+  .bib::before{content:''; width:8px; height:8px; border-radius:50%; background:var(--bg); border:1px solid var(--amber-dim);}
+  .flag{display:inline-block; font-size:10.5px; padding:2px 6px; border-radius:4px; font-weight:600; margin:1px;}
+  .flag-warn{background:rgba(232,163,61,0.15); color:var(--amber);}
+  .flag-ok{background:rgba(107,155,110,0.15); color:var(--green);}
+  .flag-err{background:rgba(194,73,62,0.15); color:var(--red);}
+  .readonly-val{color:var(--ink-dim); font-size:12.5px;}
+  .empty{text-align:center; padding:50px 20px; color:var(--ink-dim);}
+  .empty .display{font-size:22px; color:var(--ink); margin-bottom:6px;}
+  .drag-item{display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:7px; padding:9px 10px; margin-bottom:6px; cursor:grab; font-size:13px;}
+  .drag-item:active{cursor:grabbing;}
+  .drag-handle{color:var(--ink-dim); font-family:'IBM Plex Mono',monospace;}
+  .toast{position:fixed; bottom:24px; right:24px; background:var(--panel); border:1px solid var(--amber); color:var(--ink); padding:12px 18px; border-radius:8px; font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,0.4); display:none; z-index:999; max-width:420px; max-height:60vh; overflow-y:auto; line-height:1.5;}
+  .toast.err{border-color:var(--red);}
+  .toast.show{display:block;}
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;}
+  .stat-card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px;}
+  .stat-num{font-family:'Barlow Condensed',sans-serif; font-size:36px; font-weight:700; color:var(--amber); line-height:1;}
+  .stat-label{font-size:12px; color:var(--ink-dim); margin-top:6px;}
+  .bar-row{display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:13px;}
+  .bar-label{width:170px; flex-shrink:0; color:var(--ink-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .bar-track{flex:1; height:16px; background:var(--panel-2); border-radius:4px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--amber);}
+  .bar-count{width:26px; text-align:right; font-family:'IBM Plex Mono',monospace; color:var(--ink);}
+
+  /* Report preview: a white "paper" card, visible on screen at all times — not just while printing. */
+  #reportPreviewCard{background:#fff; color:#111; padding:0; overflow:hidden;}
+  #reportPreviewCard .preview-toolbar{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--panel-2); padding:12px 20px; border-bottom:1px solid var(--line);
+  }
+  #reportPreviewCard .preview-toolbar span{color:var(--ink-dim); font-size:12px;}
+  #reportPreview{padding:0;}
+  #reportPreview:empty::after{content:'Pick a report above to preview it here.'; display:block; padding:40px 20px; text-align:center; color:#888;}
+  .print-sheet{padding:22px 26px; border-bottom:2px dashed #ddd;}
+  .print-sheet:last-child{border-bottom:none;}
+  .print-letterhead{display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:4px;}
+  .print-letterhead .show-name{font-family:Georgia,serif; font-size:19px; font-weight:bold;}
+  .print-letterhead .print-date{font-size:11px; color:#666;}
+  .print-eyebrow{font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#666; margin:10px 0 0 0;}
+  #reportPreview h2{font-family:Georgia,serif; margin:2px 0 4px 0; color:#111;}
+  .print-sub{color:#555; font-size:12px; margin-bottom:10px;}
+  #reportPreview table{color:#111; width:100%; border-collapse:collapse;}
+  #reportPreview th, #reportPreview td{border-color:#ddd; border-bottom:1px solid #ddd; padding:6px 8px; text-align:left;}
+  #reportPreview th{font-family:'Barlow Condensed',sans-serif; font-size:12px; letter-spacing:0.04em; text-transform:uppercase; color:#555;}
+  .score-card{border:1px solid #ccc; padding:12px; margin-bottom:14px;}
+  .score-card h4{margin:0 0 6px 0;}
+  .score-row{display:flex; justify-content:space-between; border-bottom:1px dotted #ccc; padding:6px 0; font-size:13px;}
+  .checkbox{display:inline-block; width:12px; height:12px; border:1px solid #333;}
+  /* Check-in report: one division per printed page (never two divisions sharing a page), keeping
+     all that division's classes together when they fit; a class-heavy division may still spill
+     onto a second page rather than being cut off entirely. */
+  .checkin-division{padding:22px 26px; border-bottom:2px dashed #ddd;}
+  .checkin-division:last-child{border-bottom:none;}
+  .checkin-class{margin-bottom:18px;}
+  .checkin-class:last-child{margin-bottom:0;}
+
+  @media print{
+    .sidebar, .no-print{display:none !important;}
+    main{padding:0; max-width:100%;}
+    body{background:#fff; color:#000;}
+    #reportPreviewCard{border:none; box-shadow:none;}
+    .print-sheet{page-break-after:always; border-bottom:none;}
+    .checkin-division{page-break-before:always; break-inside:avoid; page-break-inside:avoid; border-bottom:none;}
+    .checkin-division:first-child{page-break-before:auto;}
+  }
+  .help{font-size:12px; color:var(--ink-dim); line-height:1.5; margin-top:6px;}
+  code{background:var(--panel-2); padding:1px 5px; border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:12px;}
+  a{color:var(--amber);}
+  .note{background:rgba(232,163,61,0.08); border:1px solid var(--amber-dim); border-radius:8px; padding:12px 14px; font-size:12.5px; color:var(--ink); margin-bottom:16px; line-height:1.5;}
+  th[data-key]{cursor:pointer; user-select:none; position:relative; white-space:nowrap;}
+  th[data-key]:hover{color:var(--ink);}
+  .sort-arrow{display:inline-block; margin-left:3px; opacity:0.7; font-size:10px;}
+  .col-resizer{position:absolute; right:0; top:0; width:8px; height:100%; cursor:col-resize; z-index:2;}
+  .col-resizer:hover{background:rgba(232,163,61,0.25);}
+  .card-toggle{cursor:pointer; user-select:none; display:inline-flex; align-items:center; gap:6px;}
+  .card-toggle .chev{display:inline-block; transition:transform .15s; font-size:11px; color:var(--amber);}
+  .card-toggle.collapsed .chev{transform:rotate(-90deg);}
+  .flag-tie{background:rgba(194,73,62,0.18); color:var(--red);}
+  input.input-invalid{outline:1px solid var(--red); border-color:var(--red);}
+  .ranking-panel{margin-top:16px; padding-top:16px; border-top:1px solid var(--line); overflow-x:auto;}
+  #rosterTableWrap{overflow-x:auto;}
+  input[type=checkbox]{width:16px; height:16px; accent-color:var(--amber); cursor:pointer;}
+  select.division-select{max-width:none;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-tag">BACKSTAGE</span>
+      <h1>Show Manager</h1>
+      <p>Live on your Google Sheet</p>
+    </div>
+    <nav>
+      <button class="nav-btn active" data-page="connect"><span class="nav-num">01</span>Connect</button>
+      <button class="nav-btn" data-page="setup"><span class="nav-num">02</span>Setup</button>
+      <button class="nav-btn" data-page="roster"><span class="nav-num">03</span>Registrations</button>
+      <button class="nav-btn" data-page="scoring"><span class="nav-num">04</span>Scoring</button>
+      <button class="nav-btn" data-page="reports"><span class="nav-num">05</span>Reports</button>
+      <button class="nav-btn" data-page="dashboard"><span class="nav-num">06</span>Dashboard</button>
+    </nav>
+    <div class="status-pill" id="statusPill"><span class="status-dot" id="statusDot"></span><span id="statusText">Not connected</span></div>
+  </aside>
+
+  <main>
+
+    <!-- CONNECT -->
+    <section class="page active" id="page-connect">
+      <h2 class="page-title">Connect</h2>
+      <p class="page-sub">Pointed at your Registrations + DivClass sheet structure by default.</p>
+
+      <div class="card">
+        <h3>Google API credentials</h3>
+        <div class="grid-2">
+          <div><label>OAuth Client ID</label><input type="text" id="cfgClientId" placeholder="xxxxxx.apps.googleusercontent.com"></div>
+          <div><label>API Key</label><input type="text" id="cfgApiKey" placeholder="AIza..."></div>
+        </div>
+        <p class="help">Create both in the <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a> with the Sheets API enabled on the project, and add this page's hosted URL to the OAuth Client's Authorized JavaScript origins. Each staff member signs in with their own Google account — no separate login system.</p>
+        <label>Spreadsheet ID</label>
+        <input type="text" id="cfgSheetId" placeholder="From the sheet URL: /d/<this part>/edit">
+        <div class="btn-row">
+          <button class="btn-primary" id="btnSaveConfig">Save</button>
+          <button class="btn-ghost" id="btnSignIn">Sign in with Google</button>
+          <button class="btn-ghost" id="btnSignOut">Sign out</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Tab &amp; column mapping</h3>
+        <div class="note">
+          Defaults below match your <strong>Registrations</strong> and <strong>DivClass</strong> tabs. <strong>Class and Order are formulas in your sheet</strong> (an IFS lookup and a VLOOKUP) — this app reads them but never overwrites them, so your existing automation stays intact. Adjust letters below only if your columns move.
+        </div>
+        <div class="grid-3">
+          <div>
+            <label>Registrations tab</label><input type="text" id="mapRegTab" value="Registrations">
+            <label>Athlete Num (bib/ID)</label><input type="text" id="mapColAthleteNum" value="A">
+            <label>First name</label><input type="text" id="mapColFirst" value="B">
+            <label>Last name</label><input type="text" id="mapColLast" value="C">
+            <label>Email</label><input type="text" id="mapColEmail" value="D">
+          </div>
+          <div>
+            <label>Division</label><input type="text" id="mapColDivision" value="F">
+            <label>Height (full inches, read-only, formula)</label><input type="text" id="mapColHeight" value="L">
+            <label>Weight</label><input type="text" id="mapColWeight" value="J">
+            <label>Shirt size</label><input type="text" id="mapColShirt" value="K">
+            <label>Checked-in</label><input type="text" id="mapColCheckedIn" value="W">
+          </div>
+          <div>
+            <label>Class (read-only, formula)</label><input type="text" id="mapColClass" value="M">
+            <label>Order (read-only, formula)</label><input type="text" id="mapColOrder" value="N">
+            <label>First judge column</label><input type="text" id="mapColJudgeStart" value="O">
+            <label># of judges</label><input type="number" id="mapJudgeCount" value="7" min="1" max="9">
+            <label>Total (written when you save scores)</label><input type="text" id="mapColTotal" value="V">
+            <label>Rank in Class (written when you save scores)</label><input type="text" id="mapColRank" value="X">
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:6px">
+          <div>
+            <label>DivClass tab</label><input type="text" id="mapRulesTab" value="DivClass">
+            <label>Division column (full text, e.g. "Men's - Bodybuilding")</label><input type="text" id="mapRuleDivision" value="A">
+            <label>Class column</label><input type="text" id="mapRuleClass" value="B">
+            <label>Min height/weight threshold column</label><input type="text" id="mapRuleThreshold" value="C">
+          </div>
+          <div>
+            <label>Division-order table: Full Division column</label><input type="text" id="mapDivOrderDiv" value="I">
+            <label>Division-order table: order number column</label><input type="text" id="mapDivOrderVal" value="J">
+            <label>Class-order table: Class column</label><input type="text" id="mapClassOrderCls" value="L">
+            <label>Class-order table: order column</label><input type="text" id="mapClassOrderVal" value="M">
+          </div>
+        </div>
+        <p class="help">Columns D and E on your DivClass tab (DivClass and DivClassOrder) are formulas built from the fields above — this app reads them only for reference and never writes to them. Height is read from your Height Inches column (L by default) as a plain number of inches, and is only written back on save for a row if you actually edited it in the app — if you leave a row's height untouched, whatever formula is already in that cell (like <code>=(H2*12)+I2</code>) is left completely alone. Checked-in is written as TRUE/FALSE to your existing Checked-In column. Total and Rank in Class are written by the Scoring page's "Save scores to sheet" button — each competitor's total and rank are computed within their own class only. Your sheet also has "social media" (E) and "add division" (G) columns that aren't wired up to anything here — let me know if you'd like those brought into the app.</p>
+        <div class="btn-row"><button class="btn-primary btn-sm" id="btnSaveMapping">Save mapping</button></div>
+      </div>
+
+      <div class="card">
+        <h3>Test with a local file — no Google connection needed</h3>
+        <p class="help">Load an <code>.xlsx</code> export of your workbook (like the one you shared) straight into the browser to try Setup, Registrations, Scoring, Reports, and Dashboard with real data before connecting to the live sheet. Nothing leaves your browser and nothing is written anywhere — the Save buttons just show what they would have sent.</p>
+        <label>Workbook file</label>
+        <input type="file" id="testFileInput" accept=".xlsx,.xls">
+        <div class="btn-row">
+          <button class="btn-primary" id="btnLoadTestFile">Load into test mode</button>
+          <button class="btn-ghost" id="btnExitTestMode">Exit test mode</button>
+        </div>
+        <p class="help" id="testFileSummary"></p>
+      </div>
+    </section>
+
+    <!-- SETUP -->
+    <section class="page" id="page-setup">
+      <h2 class="page-title">Setup</h2>
+      <p class="page-sub">Your Order code (e.g. <code>2-B</code>) is built by your sheet's formula from two lookup tables — edit those tables here and the order follows automatically, same as it does in your sheet.</p>
+
+      <div class="card">
+        <h3>Show name</h3>
+        <label>Displayed at the top of every printed report</label>
+        <input type="text" id="setupShowName" placeholder="e.g. Summer Shredding 2026">
+      </div>
+
+      <div class="card">
+        <h3><span class="card-toggle" data-target="divOrderBody"><span class="chev">▾</span>Division order</span><button class="btn-ghost btn-sm" id="btnAddDivOrderRow">+ Add division</button></h3>
+        <div class="card-body" id="divOrderBody">
+          <div id="divOrderList"></div>
+          <div class="btn-row">
+            <button class="btn-primary btn-sm" id="btnSaveDivOrder">Save division order</button>
+            <button class="btn-ghost btn-sm" id="btnReloadDivOrder">Reload from sheet</button>
+          </div>
+          <p class="help">Drag to reorder. This is the number before the dash in the order code — which division goes on stage first, second, etc.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="card-toggle" data-target="classOrderBody"><span class="chev">▾</span>Class order</span><button class="btn-ghost btn-sm" id="btnAddClassOrderRow">+ Add class name</button></h3>
+        <div class="card-body" id="classOrderBody">
+          <div id="classOrderList"></div>
+          <div class="btn-row">
+            <button class="btn-primary btn-sm" id="btnSaveClassOrder">Save class order</button>
+            <button class="btn-ghost btn-sm" id="btnReloadClassOrder">Reload from sheet</button>
+          </div>
+          <p class="help">Drag to reorder. This is shared across every division — it's the letter after the dash (Teen, Masters, and weight/height classes all get a position here once, used everywhere they appear).</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="card-toggle" data-target="rulesBody"><span class="chev">▾</span>Divisions &amp; classes</span><button class="btn-ghost btn-sm" id="btnAddRuleRow">+ Add class</button></h3>
+        <div class="card-body" id="rulesBody">
+          <div id="ruleList"></div>
+          <div class="btn-row">
+            <button class="btn-primary btn-sm" id="btnSaveRules">Save divisions &amp; classes</button>
+            <button class="btn-ghost btn-sm" id="btnReloadRules">Reload from sheet</button>
+          </div>
+          <p class="help">
+            Threshold is <strong>weight (lbs)</strong> for Bodybuilding classes, <strong>height (inches)</strong> for Classic Physique / Fit Physique / Physique / Figure / Wellness / Bikini classes, and left <strong>blank</strong> for any Teen or Masters class in any division, and for Transformation classes — none of those split by height or weight. The computed order code shown per row comes from the two tables above; it isn't editable directly.
+          </p>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ROSTER -->
+    <section class="page" id="page-roster">
+      <h2 class="page-title">Registrations</h2>
+      <p class="page-sub">Clean up entries and manage competitors. Class &amp; Order stay as your sheet's own formulas compute them — this just checks them.</p>
+
+      <div class="card">
+        <h3>One-click cleanup</h3>
+        <p class="help">Trims stray whitespace, fixes name/division capitalization, fuzzy-matches division text against your DivClass tab, and flags rows with missing or non-numeric height/weight — the usual copy-paste-from-another-system mess. Only writes to Name, Division, Height, Weight, Shirt Size, Checked-in, Athlete Num — never to Class, Order, or Total, since those are your formulas.</p>
+        <div class="btn-row">
+          <button class="btn-primary" id="btnLoadRoster">Load registrations</button>
+          <button class="btn-ghost" id="btnRunCleanup">Run cleanup</button>
+          <button class="btn-ghost" id="btnCheckClass">Check class assignment</button>
+          <button class="btn-ghost" id="btnNumberCompetitors">Number competitors (Athlete Num)</button>
+          <button class="btn-primary" id="btnSaveRoster">Save changes to sheet</button>
+        </div>
+        <p class="help" id="cleanupSummary"></p>
+      </div>
+
+      <div class="card">
+        <h3>Competitors <button class="btn-ghost btn-sm" id="btnAddCompetitor">+ Add competitor</button></h3>
+        <p class="help">Click a column header to sort. Drag the edge of a header to resize it. Athlete Num can be edited directly to correct it after auto-numbering. Uncheck "Checked-in" to exclude a competitor from Scoring and from printed reports (they stay in the sheet). Use "+ Class" on a row to enter the same competitor into another class, copying their height/weight. "Class (live)" and "Order (live)" recalculate instantly as you edit height, weight, or division, following the same rules as Setup — compare them against "Class (sheet)" / "Order (sheet)" (highlighted when they differ) to see what the row will become once you save and the sheet's own formula recalculates.</p>
+        <div id="rosterTableWrap"><div class="empty"><div class="display">No registrations loaded</div>Click "Load registrations" above.</div></div>
+      </div>
+    </section>
+
+    <!-- SCORING -->
+    <section class="page" id="page-scoring">
+      <h2 class="page-title">Scoring</h2>
+      <p class="page-sub">Pick a division, then enter judges' scores class by class as each is called. Every class within the division is scored, totaled, and ranked separately from the others — a class's ranking never mixes with another class in the same division. Writes to your Judge, Total, and Rank in Class columns. Competitors who haven't checked in are excluded here automatically.</p>
+      <div class="card">
+        <div class="grid-2">
+          <div><label>Division (classes grouped from your sheet's Class column)</label><select id="scoringClassSelect"><option>Load roster first</option></select></div>
+          <div><label>Number of judges today</label><input type="number" id="scoringJudgeCount" value="7" min="1" max="9"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary" id="btnLoadScoring">Load division</button>
+          <button class="btn-ghost" id="btnRecalcTotals">Recalculate totals</button>
+          <button class="btn-primary" id="btnSaveScores">Save scores to sheet</button>
+          <button class="btn-ghost" id="btnShowRanking">Show ranking</button>
+        </div>
+        <p class="help">Each judge places competitors 1 through the number of competitors in that competitor's own class (no ties, no skipped numbers) — or enters <code>999</code> for a competitor who isn't being ranked (withdrew, no-showed, etc.), which drops them from ranking but keeps them in the sheet. Always ordered by Athlete Num within each class. Press Enter to move down a judge's column; at the bottom of a class it jumps to the top of that class's next judge column. Saving writes each competitor's Total and their Rank in Class — both computed within their own class only. "Number of judges today" hides the unused judge columns below (e.g. set it to 5 if two judges are out) without losing any scores already entered in them — raise it again and those columns and their scores reappear. "Recalculate totals" refreshes the on-screen Total column and ranking for scores that were already sitting on a class or division when you loaded it — handy when you step away and come back to one instead of retyping something to trigger a refresh.</p>
+      </div>
+      <div class="card">
+        <h3>Score entry</h3>
+        <div id="scoringTableWrap"><div class="empty"><div class="display">No division loaded</div>Pick a division above and click "Load division".</div></div>
+        <div class="ranking-panel" id="rankingPanel" style="display:none"></div>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="page" id="page-reports">
+      <h2 class="page-title no-print">Reports</h2>
+      <p class="page-sub no-print">Your six show documents, generated from the loaded roster.</p>
+      <div class="card no-print">
+        <h3>Available reports</h3>
+        <div class="btn-row">
+          <button class="btn-primary" id="btnPrintAthletes">Athletes</button>
+          <button class="btn-primary" id="btnPrintCheckins">Check-In sheet</button>
+          <button class="btn-primary" id="btnPrintShowOrder">Show Order</button>
+          <button class="btn-primary" id="btnPrintScoreCard">Judges Score Card</button>
+          <button class="btn-primary" id="btnPrintResults">Final Results</button>
+          <button class="btn-ghost" id="btnPrintNotCheckedIn">Not Checked In</button>
+        </div>
+        <p class="help">Click a report to preview it below. Load registrations first (and enter scores, for Final Results). Every report except "Not Checked In" automatically excludes competitors who haven't checked in.</p>
+      </div>
+      <div class="card" id="reportPreviewCard">
+        <div class="preview-toolbar no-print">
+          <span id="reportPreviewLabel">No report generated yet</span>
+          <button class="btn-primary btn-sm" id="btnPrintCurrentReport" style="display:none">Print this report</button>
+        </div>
+        <div id="reportPreview"></div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section class="page" id="page-dashboard">
+      <h2 class="page-title">Dashboard</h2>
+      <p class="page-sub">A live snapshot of the roster you have loaded.</p>
+      <div id="dashboardWrap"><div class="empty"><div class="display">No data loaded</div>Load registrations in the Registrations tab, then come back here.</div></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- State & config ---------------- */
+const state = {
+  config: JSON.parse(localStorage.getItem('sm_config') || '{}'),
+  mapping: JSON.parse(localStorage.getItem('sm_mapping') || 'null') || {
+    regTab:'Registrations', colAthleteNum:'A', colFirst:'B', colLast:'C', colEmail:'D',
+    colDivision:'F', colHeight:'L', colWeight:'J', colShirt:'K', colCheckedIn:'W',
+    colClass:'M', colOrder:'N', colJudgeStart:'O', judgeCount:7, colTotal:'V', colRank:'X',
+    rulesTab:'DivClass', ruleDivision:'A', ruleClass:'B', ruleThreshold:'C',
+    divOrderDiv:'I', divOrderVal:'J', classOrderCls:'L', classOrderVal:'M'
+  },
+  rules: [],       // {division (full, e.g. "Men's - Bodybuilding"), cls, threshold}
+  divOrder: [],    // {division (full), order:number}
+  classOrder: [],  // {cls, order:number}
+  roster: [],
+  tokenClient: null,
+  accessToken: null,
+  testMode: false,
+  sortState: { table:null, key:null, dir:1 },
+};
+
+function toast(msg, isErr){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=> t.classList.remove('show'), isErr ? 15000 : 4500);
+}
+function colToIdx(letter){ return letter.toUpperCase().charCodeAt(0) - 65; }
+function idxToCol(idx){ return String.fromCharCode(65+idx); }
+/* Writes ONLY the columns explicitly listed in colValueMap for one row, never touching anything
+   in between — even when those columns aren't adjacent. Splits into one range per contiguous run
+   of explicitly-set columns, so a gap (a formula column, an untouched field) is never written over. */
+function sparseRowUpdates(tab, row, colValueMap){
+  const entries = Object.entries(colValueMap)
+    .filter(([col]) => col) // skip empty/unmapped column letters
+    .map(([col,val])=>({idx: colToIdx(col), col, val}))
+    .sort((a,b)=>a.idx-b.idx);
+  const runs = [];
+  let current = [];
+  entries.forEach(e=>{
+    if(current.length && e.idx !== current[current.length-1].idx+1){ runs.push(current); current=[]; }
+    current.push(e);
+  });
+  if(current.length) runs.push(current);
+  return runs.map(run=>({
+    range: `${tab}!${run[0].col}${row}:${run[run.length-1].col}${row}`,
+    values: [run.map(e=> e.val===undefined || e.val===null ? '' : e.val)]
+  }));
+}
+function escAttr(s){ return String(s??'').replace(/"/g,'&quot;'); }
+/* Parses the leading number out of an order code read from the sheet (e.g. "2-B" -> 2). */
+function orderSortKey(orderStr){
+  const m = String(orderStr||'').match(/-?\d+/);
+  return m ? parseInt(m[0],10) : 9999;
+}
+
+/* ---------------- Nav ---------------- */
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-'+btn.dataset.page).classList.add('active');
+    if(btn.dataset.page === 'dashboard') renderDashboard();
+  });
+});
+
+/* ---------------- Setup card collapsing ---------------- */
+document.querySelectorAll('.card-toggle').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    const body = document.getElementById(t.dataset.target);
+    const collapsing = body.style.display !== 'none';
+    body.style.display = collapsing ? 'none' : '';
+    t.classList.toggle('collapsed', collapsing);
+  });
+});
+
+/* ---------------- Config load into form ---------------- */
+function loadConfigForm(){
+  document.getElementById('cfgClientId').value = state.config.clientId || '';
+  document.getElementById('cfgApiKey').value = state.config.apiKey || '';
+  document.getElementById('cfgSheetId').value = state.config.sheetId || '';
+  document.getElementById('setupShowName').value = state.config.showName || '';
+  const m = state.mapping;
+  document.getElementById('mapRegTab').value = m.regTab;
+  document.getElementById('mapColAthleteNum').value = m.colAthleteNum;
+  document.getElementById('mapColFirst').value = m.colFirst;
+  document.getElementById('mapColLast').value = m.colLast;
+  document.getElementById('mapColEmail').value = m.colEmail;
+  document.getElementById('mapColDivision').value = m.colDivision;
+  document.getElementById('mapColHeight').value = m.colHeight;
+  document.getElementById('mapColWeight').value = m.colWeight;
+  document.getElementById('mapColShirt').value = m.colShirt;
+  document.getElementById('mapColCheckedIn').value = m.colCheckedIn;
+  document.getElementById('mapColClass').value = m.colClass;
+  document.getElementById('mapColOrder').value = m.colOrder;
+  document.getElementById('mapColJudgeStart').value = m.colJudgeStart;
+  document.getElementById('mapJudgeCount').value = m.judgeCount;
+  document.getElementById('mapColTotal').value = m.colTotal;
+  document.getElementById('mapColRank').value = m.colRank;
+  document.getElementById('mapRulesTab').value = m.rulesTab;
+  document.getElementById('mapRuleDivision').value = m.ruleDivision;
+  document.getElementById('mapRuleClass').value = m.ruleClass;
+  document.getElementById('mapRuleThreshold').value = m.ruleThreshold;
+  document.getElementById('mapDivOrderDiv').value = m.divOrderDiv;
+  document.getElementById('mapDivOrderVal').value = m.divOrderVal;
+  document.getElementById('mapClassOrderCls').value = m.classOrderCls;
+  document.getElementById('mapClassOrderVal').value = m.classOrderVal;
+  document.getElementById('scoringJudgeCount').value = m.judgeCount;
+}
+loadConfigForm();
+
+document.getElementById('btnSaveConfig').addEventListener('click', ()=>{
+  state.config.clientId = document.getElementById('cfgClientId').value.trim();
+  state.config.apiKey = document.getElementById('cfgApiKey').value.trim();
+  state.config.sheetId = document.getElementById('cfgSheetId').value.trim();
+  localStorage.setItem('sm_config', JSON.stringify(state.config));
+  toast('Saved. Now click "Sign in with Google".');
+  initTokenClient();
+});
+document.getElementById('setupShowName').addEventListener('input', e=>{
+  state.config.showName = e.target.value.trim();
+  localStorage.setItem('sm_config', JSON.stringify(state.config));
+});
+
+document.getElementById('btnSaveMapping').addEventListener('click', ()=>{
+  state.mapping = {
+    regTab: document.getElementById('mapRegTab').value.trim(),
+    colAthleteNum: document.getElementById('mapColAthleteNum').value.trim().toUpperCase(),
+    colFirst: document.getElementById('mapColFirst').value.trim().toUpperCase(),
+    colLast: document.getElementById('mapColLast').value.trim().toUpperCase(),
+    colEmail: document.getElementById('mapColEmail').value.trim().toUpperCase(),
+    colDivision: document.getElementById('mapColDivision').value.trim().toUpperCase(),
+    colHeight: document.getElementById('mapColHeight').value.trim().toUpperCase(),
+    colWeight: document.getElementById('mapColWeight').value.trim().toUpperCase(),
+    colShirt: document.getElementById('mapColShirt').value.trim().toUpperCase(),
+    colCheckedIn: document.getElementById('mapColCheckedIn').value.trim().toUpperCase(),
+    colClass: document.getElementById('mapColClass').value.trim().toUpperCase(),
+    colOrder: document.getElementById('mapColOrder').value.trim().toUpperCase(),
+    colJudgeStart: document.getElementById('mapColJudgeStart').value.trim().toUpperCase(),
+    judgeCount: +document.getElementById('mapJudgeCount').value || 7,
+    colTotal: document.getElementById('mapColTotal').value.trim().toUpperCase(),
+    colRank: document.getElementById('mapColRank').value.trim().toUpperCase(),
+    rulesTab: document.getElementById('mapRulesTab').value.trim(),
+    ruleDivision: document.getElementById('mapRuleDivision').value.trim().toUpperCase(),
+    ruleClass: document.getElementById('mapRuleClass').value.trim().toUpperCase(),
+    ruleThreshold: document.getElementById('mapRuleThreshold').value.trim().toUpperCase(),
+    divOrderDiv: document.getElementById('mapDivOrderDiv').value.trim().toUpperCase(),
+    divOrderVal: document.getElementById('mapDivOrderVal').value.trim().toUpperCase(),
+    classOrderCls: document.getElementById('mapClassOrderCls').value.trim().toUpperCase(),
+    classOrderVal: document.getElementById('mapClassOrderVal').value.trim().toUpperCase(),
+  };
+  localStorage.setItem('sm_mapping', JSON.stringify(state.mapping));
+  document.getElementById('scoringJudgeCount').value = state.mapping.judgeCount;
+  toast('Mapping saved.');
+});
+
+/* ---------------- Google Auth ---------------- */
+function setStatus(connected, text){
+  document.getElementById('statusDot').classList.toggle('on', connected);
+  document.getElementById('statusText').textContent = text;
+}
+function initTokenClient(){
+  if(!window.google || !state.config.clientId) return;
+  state.tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: state.config.clientId,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    callback: (resp)=>{
+      if(resp.error){ toast('Sign-in failed: ' + resp.error, true); return; }
+      state.accessToken = resp.access_token;
+      setStatus(true, 'Connected to sheet');
+      toast('Signed in.');
+      autoLoadFromSheet();
+    }
+  });
+}
+window.addEventListener('load', initTokenClient);
+document.getElementById('btnSignIn').addEventListener('click', ()=>{
+  if(!state.config.clientId){ toast('Save your Client ID first.', true); return; }
+  if(!state.tokenClient) initTokenClient();
+  state.tokenClient.requestAccessToken();
+});
+document.getElementById('btnSignOut').addEventListener('click', ()=>{
+  if(state.accessToken) google.accounts.oauth2.revoke(state.accessToken, ()=>{});
+  state.accessToken = null;
+  setStatus(false, 'Not connected');
+  toast('Signed out.');
+});
+
+/* ---------------- Sheets API helpers ---------------- */
+/* Reads Google's structured error body (if present) and turns common statuses into a plain-English hint. */
+async function describeSheetsError(res, url){
+  let body = '';
+  try{ body = await res.text(); }catch(e){}
+  let apiMessage = body;
+  try{ apiMessage = JSON.parse(body).error?.message || body; }catch(e){}
+  const hints = {
+    400: 'Usually a wrong tab name or a range that doesn\'t exist — double check the tab names and column letters in your mapping.',
+    401: 'Your sign-in has expired — click "Sign in with Google" again.',
+    403: 'The Google account you signed in with doesn\'t have access to this spreadsheet, or the Sheets API isn\'t enabled on your Cloud project — open the sheet itself with that same Google account to confirm it\'s shared with you.',
+    404: 'The Spreadsheet ID doesn\'t match any sheet this account can see — recheck the ID you pasted from the sheet\'s URL.',
+  };
+  const hint = hints[res.status] || '';
+  console.error('Sheets API error', { url, status: res.status, statusText: res.statusText, body });
+  return `Google Sheets API error ${res.status}: ${apiMessage}${hint ? ' — ' + hint : ''}`;
+}
+async function sheetsGet(range){
+  if(!state.accessToken) throw new Error('Not signed in yet.');
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.config.sheetId}/values/${encodeURIComponent(range)}`;
+  let res;
+  try{
+    res = await fetch(url, { headers:{ Authorization:'Bearer '+state.accessToken }});
+  }catch(networkErr){
+    console.error('Network-level fetch failure calling Sheets API', networkErr, url);
+    throw new Error('Could not reach Google\'s servers at all (network/CORS-level failure, not an API error). Check: an ad blocker or privacy extension blocking googleapis.com, a Content-Security-Policy header from your hosting platform, or your own network/VPN. Open DevTools → Network tab and look for the request to sheets.googleapis.com to see the real cause.');
+  }
+  if(!res.ok) throw new Error(await describeSheetsError(res, url));
+  const data = await res.json();
+  return data.values || [];
+}
+async function sheetsBatchUpdateValues(dataArr){
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.config.sheetId}/values:batchUpdate`;
+  let res;
+  try{
+    res = await fetch(url, {
+      method:'POST',
+      headers:{ Authorization:'Bearer '+state.accessToken, 'Content-Type':'application/json' },
+      body: JSON.stringify({ valueInputOption:'USER_ENTERED', data: dataArr })
+    });
+  }catch(networkErr){
+    console.error('Network-level fetch failure calling Sheets API', networkErr, url);
+    throw new Error('Could not reach Google\'s servers at all (network/CORS-level failure, not an API error). Check: an ad blocker or privacy extension blocking googleapis.com, a Content-Security-Policy header from your hosting platform, or your own network/VPN. Open DevTools → Network tab and look for the request to sheets.googleapis.com to see the real cause.');
+  }
+  if(!res.ok) throw new Error(await describeSheetsError(res, url));
+  return res.json();
+}
+
+/* Guards a write handler: in test mode, report what would have been written and stop. */
+function guardWrite(label){
+  if(state.testMode){ toast(`Test mode — ${label} (nothing sent, no sheet connected).`); return true; }
+  if(!state.accessToken){ toast('Sign in with Google first, or use test mode.', true); return true; }
+  return false;
+}
+
+/* ---------------- Shared row parsing (used by both live Sheets reads and local test-file reads) ---------------- */
+function rulesFromRows(rows, idxOf){
+  const m = state.mapping;
+  return rows.filter(r=>r[idxOf(m.ruleDivision)]).map(r=>({
+    division: r[idxOf(m.ruleDivision)] || '',
+    cls: r[idxOf(m.ruleClass)] || '',
+    threshold: r[idxOf(m.ruleThreshold)] || ''
+  }));
+}
+function divOrderFromRows(rows, idxOf){
+  const m = state.mapping;
+  return rows.filter(r=>r[idxOf(m.divOrderDiv)]).map(r=>({
+    division: r[idxOf(m.divOrderDiv)] || '',
+    order: parseFloat(r[idxOf(m.divOrderVal)]) || 0
+  }));
+}
+function classOrderFromRows(rows, idxOf){
+  const m = state.mapping;
+  return rows.filter(r=>r[idxOf(m.classOrderCls)]).map(r=>({
+    cls: r[idxOf(m.classOrderCls)] || '',
+    order: parseFloat(r[idxOf(m.classOrderVal)]) || 0
+  }));
+}
+function rosterFromRows(rows, idxOf, rowNumOf){
+  const m = state.mapping;
+  const judgeCols = Array.from({length:m.judgeCount}, (_,i)=> idxToCol(colToIdx(m.colJudgeStart)+i));
+  return rows.map((r,i)=>{
+    const at = (letter)=> r[idxOf(letter)] ?? '';
+    const checkedInRaw = String(at(m.colCheckedIn)).trim().toUpperCase();
+    const c = {
+      row: rowNumOf(i),
+      athleteNum: at(m.colAthleteNum), first: at(m.colFirst), last: at(m.colLast), email: at(m.colEmail),
+      division: at(m.colDivision), weight: at(m.colWeight), shirt: at(m.colShirt),
+      heightIn: String(at(m.colHeight) ?? ''),
+      checkedIn: checkedInRaw==='' ? true : (checkedInRaw==='TRUE' || checkedInRaw==='YES' || checkedInRaw==='1' || checkedInRaw==='Y'),
+      sheetClass: at(m.colClass), sheetOrder: at(m.colOrder), total: at(m.colTotal), flags: []
+    };
+    c._origHeightIn = c.heightIn; // snapshot at load time — only an edit away from this triggers a write to the Height column
+    judgeCols.forEach((jc,idx)=> c['j'+(idx+1)] = r[idxOf(jc)] ?? '');
+    return c;
+  }).filter(c=>String(c.first).trim() || String(c.last).trim());
+}
+
+/* Combines the two order tables into the "2-B" style code your sheet's formula produces. */
+function orderCodeFor(fullDivision, cls){
+  const d = state.divOrder.find(x=>x.division===fullDivision);
+  const ci = state.classOrder.findIndex(x=>x.cls===cls);
+  if(!d || ci===-1) return { code:'', sortKey: 9999 };
+  const letter = ci<26 ? String.fromCharCode(65+ci) : `Z${ci}`;
+  return { code: `${d.order}-${letter}`, sortKey: d.order*1000 + ci };
+}
+
+/* ---------------- Test mode: load a local .xlsx, no Google connection ---------------- */
+document.getElementById('btnLoadTestFile').addEventListener('click', async ()=>{
+  try{
+    const file = document.getElementById('testFileInput').files[0];
+    if(!file){ toast('Choose a file first.', true); return; }
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const m = state.mapping;
+    const regSheet = wb.Sheets[m.regTab];
+    const rulesSheet = wb.Sheets[m.rulesTab];
+    if(!regSheet) throw new Error(`No tab named "${m.regTab}" in that file — check the mapping on this page.`);
+    if(!rulesSheet) throw new Error(`No tab named "${m.rulesTab}" in that file — check the mapping on this page.`);
+
+    const regRows = XLSX.utils.sheet_to_json(regSheet, {header:1, raw:false, defval:''});
+    const rulesRows = XLSX.utils.sheet_to_json(rulesSheet, {header:1, raw:false, defval:''});
+    const dataRows = regRows.slice(1); // drop header row
+    const ruleDataRows = rulesRows.slice(1);
+
+    // Full-row arrays start at column A, so a column letter maps straight to its own index.
+    const idxOf = (letter)=> colToIdx(letter);
+    state.rules = rulesFromRows(ruleDataRows, idxOf);
+    state.divOrder = divOrderFromRows(ruleDataRows, idxOf);
+    state.classOrder = classOrderFromRows(ruleDataRows, idxOf);
+    state.roster = rosterFromRows(dataRows, idxOf, (i)=> i+2);
+
+    state.testMode = true;
+    setStatus(true, `Test mode — ${file.name}`);
+    renderDivOrderList();
+    renderClassOrderList();
+    renderRuleList();
+    renderRoster();
+    populateScoringClasses();
+    toast(`Loaded ${state.roster.length} registration rows and ${state.rules.length} classes from the file. Nothing is connected to a live sheet.`);
+  }catch(err){ toast(err.message, true); }
+});
+document.getElementById('btnExitTestMode').addEventListener('click', ()=>{
+  state.testMode = false;
+  setStatus(!!state.accessToken, state.accessToken ? 'Connected to sheet' : 'Not connected');
+  toast('Left test mode.');
+});
+
+/* ---------------- Setup / Rules (DivClass tab) ---------------- */
+/* Generic draggable list helper, reused for divOrder, classOrder, and rules. */
+function makeDraggableList(wrapId, arr, fieldsHtml, onRenumber, rerender){
+  const wrap = document.getElementById(wrapId);
+  wrap.innerHTML = '';
+  if(arr.length === 0){
+    wrap.innerHTML = '<div class="empty">Nothing here yet. Add a row or reload from the sheet.</div>';
+    return;
+  }
+  arr.forEach((r,i)=>{
+    const row = document.createElement('div');
+    row.className = 'drag-item';
+    row.draggable = true;
+    row.dataset.idx = i;
+    row.innerHTML = fieldsHtml(r,i);
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const idx = +e.target.dataset.idx, field = e.target.dataset.field;
+      arr[idx][field] = e.target.value;
+    });
+  });
+  wrap.querySelectorAll('[data-remove]').forEach(b=>{
+    b.addEventListener('click', e=>{ arr.splice(+e.target.dataset.remove, 1); rerender(); });
+  });
+  let dragIdx = null;
+  wrap.querySelectorAll('.drag-item').forEach(item=>{
+    item.addEventListener('dragstart', ()=>{ dragIdx = +item.dataset.idx; });
+    item.addEventListener('dragover', e=> e.preventDefault());
+    item.addEventListener('drop', e=>{
+      e.preventDefault();
+      const dropIdx = +item.dataset.idx;
+      if(dragIdx === null || dragIdx === dropIdx) return;
+      const moved = arr.splice(dragIdx,1)[0];
+      arr.splice(dropIdx,0,moved);
+      if(onRenumber) onRenumber(arr);
+      rerender();
+    });
+  });
+}
+
+/* --- Division order (K:L) --- */
+function renderDivOrderList(){
+  makeDraggableList('divOrderList', state.divOrder, (r,i)=> `
+      <span class="drag-handle">::</span>
+      <span class="mono" style="width:24px; color:var(--amber)">${i+1}</span>
+      <input type="text" data-field="division" data-idx="${i}" value="${escAttr(r.division)}" placeholder="Full division, e.g. Men's - Bodybuilding" style="flex:1">
+      <button class="btn-danger btn-sm" data-remove="${i}">Remove</button>
+    `, (arr)=> arr.forEach((r,i)=> r.order = i+1), renderDivOrderList);
+}
+document.getElementById('btnAddDivOrderRow').addEventListener('click', ()=>{
+  state.divOrder.push({division:'', order: state.divOrder.length+1});
+  renderDivOrderList();
+});
+async function loadDivOrder(){
+  try{
+    if(!state.accessToken){ toast('Sign in with Google first, or use test mode.', true); return; }
+    const m = state.mapping;
+    const cols = [m.divOrderDiv, m.divOrderVal].sort();
+    const rows = await sheetsGet(`${m.rulesTab}!${cols[0]}2:${cols[1]}40`);
+    const base = colToIdx(cols[0]);
+    state.divOrder = divOrderFromRows(rows, (letter)=> colToIdx(letter)-base);
+    renderDivOrderList();
+    toast(`Loaded ${state.divOrder.length} divisions.`);
+  }catch(err){ toast(err.message, true); }
+}
+document.getElementById('btnReloadDivOrder').addEventListener('click', loadDivOrder);
+document.getElementById('btnSaveDivOrder').addEventListener('click', async ()=>{
+  if(guardWrite('would save the division order table')) return;
+  try{
+    const m = state.mapping;
+    state.divOrder.forEach((r,i)=> r.order = i+1);
+    const data = state.divOrder.flatMap((r,i)=> sparseRowUpdates(m.rulesTab, 2+i, {
+      [m.divOrderDiv]: r.division,
+      [m.divOrderVal]: r.order,
+    }));
+    await sheetsBatchUpdateValues(data);
+    toast('Division order saved.');
+  }catch(err){ toast(err.message, true); }
+});
+
+/* --- Class order (N:O) --- */
+function renderClassOrderList(){
+  makeDraggableList('classOrderList', state.classOrder, (r,i)=> `
+      <span class="drag-handle">::</span>
+      <span class="mono" style="width:24px; color:var(--amber)">${i<26?String.fromCharCode(65+i):i}</span>
+      <input type="text" data-field="cls" data-idx="${i}" value="${escAttr(r.cls)}" placeholder="Class name, e.g. Teen, Masters, A, B..." style="flex:1">
+      <button class="btn-danger btn-sm" data-remove="${i}">Remove</button>
+    `, (arr)=> arr.forEach((r,i)=> r.order = i+1), renderClassOrderList);
+}
+document.getElementById('btnAddClassOrderRow').addEventListener('click', ()=>{
+  state.classOrder.push({cls:'', order: state.classOrder.length+1});
+  renderClassOrderList();
+});
+async function loadClassOrder(){
+  try{
+    if(!state.accessToken){ toast('Sign in with Google first, or use test mode.', true); return; }
+    const m = state.mapping;
+    const cols = [m.classOrderCls, m.classOrderVal].sort();
+    const rows = await sheetsGet(`${m.rulesTab}!${cols[0]}2:${cols[1]}40`);
+    const base = colToIdx(cols[0]);
+    state.classOrder = classOrderFromRows(rows, (letter)=> colToIdx(letter)-base);
+    renderClassOrderList();
+    toast(`Loaded ${state.classOrder.length} class names.`);
+  }catch(err){ toast(err.message, true); }
+}
+document.getElementById('btnReloadClassOrder').addEventListener('click', loadClassOrder);
+document.getElementById('btnSaveClassOrder').addEventListener('click', async ()=>{
+  if(guardWrite('would save the class order table')) return;
+  try{
+    const m = state.mapping;
+    state.classOrder.forEach((r,i)=> r.order = i+1);
+    const data = state.classOrder.flatMap((r,i)=> sparseRowUpdates(m.rulesTab, 2+i, {
+      [m.classOrderCls]: r.cls,
+      [m.classOrderVal]: r.order,
+    }));
+    await sheetsBatchUpdateValues(data);
+    toast('Class order saved.');
+  }catch(err){ toast(err.message, true); }
+});
+
+/* --- Divisions & classes (A, B, D, E — the threshold rows) --- */
+function renderRuleList(){
+  makeDraggableList('ruleList', state.rules, (r,i)=>{
+    const oc = orderCodeFor(r.division, r.cls);
+    return `
+      <span class="drag-handle">::</span>
+      <input type="text" data-field="division" data-idx="${i}" value="${escAttr(r.division)}" placeholder="Full division" style="flex:1.3">
+      <input type="text" data-field="cls" data-idx="${i}" value="${escAttr(r.cls)}" placeholder="Class" style="flex:1">
+      <input type="text" data-field="threshold" data-idx="${i}" value="${escAttr(r.threshold)}" placeholder="Min ht/wt (blank for Teen/Masters)" style="width:170px">
+      <span class="mono" style="width:50px; color:var(--ink-dim)" title="Computed from the two order tables above">${oc.code||'—'}</span>
+      <button class="btn-danger btn-sm" data-remove="${i}">Remove</button>
+    `;
+  }, null, renderRuleList);
+}
+document.getElementById('btnAddRuleRow').addEventListener('click', ()=>{
+  state.rules.push({division:'', cls:'', threshold:''});
+  renderRuleList();
+});
+async function loadRules(){
+  try{
+    if(!state.accessToken){ toast('Sign in with Google first, or use test mode.', true); return; }
+    const m = state.mapping;
+    const cols = [m.ruleDivision, m.ruleClass, m.ruleThreshold].sort();
+    const rows = await sheetsGet(`${m.rulesTab}!${cols[0]}2:${cols[cols.length-1]}500`);
+    const base = colToIdx(cols[0]);
+    state.rules = rulesFromRows(rows, (letter)=> colToIdx(letter)-base);
+    renderRuleList();
+    toast(`Loaded ${state.rules.length} classes.`);
+  }catch(err){ toast(err.message, true); }
+}
+document.getElementById('btnReloadRules').addEventListener('click', loadRules);
+document.getElementById('btnSaveRules').addEventListener('click', async ()=>{
+  if(guardWrite('would save divisions, classes & thresholds')) return;
+  try{
+    const m = state.mapping;
+    const data = state.rules.flatMap((r,i)=>{
+      const row = 2+i;
+      return sparseRowUpdates(m.rulesTab, row, {
+        [m.ruleDivision]: r.division,
+        [m.ruleClass]: r.cls,
+        [m.ruleThreshold]: r.threshold,
+      });
+    });
+    await sheetsBatchUpdateValues(data);
+    toast('Divisions & classes saved. DivClass & DivClassOrder formulas are never touched.');
+  }catch(err){ toast(err.message, true); }
+});
+
+/* ---------------- Roster: load, cleanup, class check, number ---------------- */
+function levenshtein(a,b){
+  a=a.toLowerCase(); b=b.toLowerCase();
+  const m=a.length, n=b.length;
+  const dp = Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j-1],dp[i-1][j],dp[i][j-1]);
+  return dp[m][n];
+}
+function knownDivisions(){ return [...new Set(state.rules.map(r=>r.division).filter(Boolean))]; }
+function bestDivisionMatch(input){
+  const known = knownDivisions();
+  if(known.length===0 || !input) return {match:input, changed:false};
+  let best=null, bestDist=Infinity;
+  known.forEach(k=>{ const d = levenshtein(input.trim(), k.trim()); if(d<bestDist){ bestDist=d; best=k; } });
+  const threshold = Math.max(2, Math.floor(best.length*0.3));
+  if(best && bestDist>0 && bestDist<=threshold) return {match:best, changed:true};
+  return {match:input, changed:false};
+}
+function titleCase(s){ return String(s||'').replace(/\s+/g,' ').trim().replace(/\w\S*/g, t=> t[0].toUpperCase()+t.slice(1).toLowerCase()); }
+
+async function loadRoster(){
+  try{
+    if(!state.accessToken){ toast('Sign in with Google first, or use test mode.', true); return; }
+    const m = state.mapping;
+    const cols = [m.colAthleteNum, m.colFirst, m.colLast, m.colEmail, m.colDivision, m.colHeight, m.colWeight, m.colShirt, m.colCheckedIn, m.colClass, m.colOrder, m.colTotal].sort();
+    const judgeCols = Array.from({length:m.judgeCount}, (_,i)=> idxToCol(colToIdx(m.colJudgeStart)+i));
+    const allCols = [...cols, ...judgeCols].sort();
+    const minCol = allCols[0], maxCol = allCols[allCols.length-1];
+    const rows = await sheetsGet(`${m.regTab}!${minCol}2:${maxCol}500`);
+    const base = colToIdx(minCol);
+    state.roster = rosterFromRows(rows, (letter)=> colToIdx(letter)-base, (i)=> i+2);
+    renderRoster();
+    populateScoringClasses();
+    toast(`Loaded ${state.roster.length} entries.`);
+  }catch(err){ toast(err.message, true); }
+}
+document.getElementById('btnLoadRoster').addEventListener('click', loadRoster);
+
+/* Runs right after a successful Google sign-in so Setup (division order, class order, rules) and
+   Registrations are already on screen — no "Reload from sheet" / "Load registrations" clicks needed.
+   Setup loads first since the roster's live Class/Order preview and division dropdowns depend on it.
+   Each step already toasts its own outcome (including failures), so a failed step here doesn't stop
+   the rest from loading. Skipped quietly if there's no Spreadsheet ID configured yet. */
+async function autoLoadFromSheet(){
+  if(!state.config.sheetId) return;
+  await loadDivOrder();
+  await loadClassOrder();
+  await loadRules();
+  await loadRoster();
+  toast('Setup and Registrations auto-loaded from your sheet.');
+}
+
+/* Which measurement (if any) a division's classes are split by:
+   'none' for Teen/Masters (any division) and Transformation — no height/weight required;
+   'weight' for Bodybuilding; 'height' for every other physique-style division. */
+function measurementFor(divisionOrClassText){
+  const t = String(divisionOrClassText||'');
+  if(/transformation|masters|teen/i.test(t)) return 'none';
+  if(/bodybuilding/i.test(t) && !/classic|fit/i.test(t)) return 'weight';
+  return 'height';
+}
+
+document.getElementById('btnRunCleanup').addEventListener('click', ()=>{
+  let fixed=0, flagged=0;
+  state.roster.forEach(c=>{
+    c.flags = [];
+    const rawFirst=c.first, rawLast=c.last, rawDiv=c.division;
+    c.first = titleCase(c.first); c.last = titleCase(c.last);
+    if(c.first!==rawFirst || c.last!==rawLast) fixed++;
+    if(c.division){
+      const cleanedDiv = c.division.trim();
+      const {match, changed} = bestDivisionMatch(cleanedDiv);
+      c.division = match.trim();
+      if(changed || cleanedDiv !== rawDiv) fixed++;
+    }
+    c.heightIn = String(c.heightIn).trim();
+    c.weight = String(c.weight).trim();
+
+    if(!c.division) c.flags.push('No division');
+    const need = measurementFor(c.division);
+    if(need === 'weight'){
+      if(!c.weight) c.flags.push('Missing weight (required for Bodybuilding)');
+      else if(isNaN(parseFloat(c.weight))) c.flags.push('Weight not numeric');
+    } else if(need === 'height'){
+      if(!c.heightIn) c.flags.push('Missing height');
+      else if(isNaN(parseFloat(c.heightIn))) c.flags.push('Height not numeric');
+    }
+    // need === 'none' (Teen/Masters/Transformation): no height/weight required, nothing to flag
+    if(c.division && knownDivisions().length && !knownDivisions().includes(c.division)) c.flags.push('Division not in DivClass tab');
+    if(c.flags.length) flagged++;
+  });
+  renderRoster();
+  document.getElementById('cleanupSummary').textContent = `Cleanup pass: ${fixed} field(s) auto-corrected, ${flagged} row(s) flagged. Name/Division/Height/Weight/Shirt only — Class & Order untouched.`;
+  toast('Cleanup complete.');
+});
+
+/* Replicates the sheet's own Class formula logic, as a check only */
+function expectedClass(c){
+  const division = (c.division||'').trim();
+  if(!division) return null;
+
+  if(measurementFor(division) === 'none'){
+    // Teen/Masters/Transformation classes are never checked against a formula — the class is
+    // simply whatever is in the Division field, no threshold lookup and no mismatch flagging.
+    return { cls: division, order: '', skip: true };
+  }
+
+  const candidates = state.rules.filter(r => r.division === division && r.threshold !== '' && r.threshold != null && measurementFor(division) !== 'none');
+  if(candidates.length === 0) return null;
+  const isWeightBased = measurementFor(division) === 'weight';
+  const value = isWeightBased ? parseFloat(c.weight) : parseFloat(c.heightIn);
+  const sorted = candidates.slice().sort((a,b)=> parseFloat(a.threshold) - parseFloat(b.threshold));
+  let picked = sorted[0];
+  for(const r of sorted){ if(!isNaN(value) && value >= parseFloat(r.threshold)) picked = r; }
+  return { cls: `${division} - ${picked.cls}`, order: orderCodeFor(picked.division, picked.cls).code };
+}
+
+document.getElementById('btnCheckClass').addEventListener('click', ()=>{
+  let mismatches = 0, skipped = 0;
+  state.roster.forEach(c=>{
+    c.flags = c.flags.filter(f=>!f.startsWith('Class check:'));
+    const exp = expectedClass(c);
+    if(exp && exp.skip){ skipped++; return; } // Transformation/Teen/Masters — never checked
+    if(exp && c.sheetClass && exp.cls !== c.sheetClass){
+      c.flags.push(`Class check: sheet says "${c.sheetClass}", expected "${exp.cls}"`);
+      mismatches++;
+    } else if(exp && !c.sheetClass){
+      c.flags.push(`Class check: sheet blank, expected "${exp.cls}"`);
+      mismatches++;
+    }
+  });
+  renderRoster();
+  toast(mismatches ? `${mismatches} row(s) don't match the sheet's own Class formula — worth a look. (${skipped} Transformation/Teen/Masters row(s) skipped.)` : `All checked classes match the sheet formula. (${skipped} Transformation/Teen/Masters row(s) skipped.)`);
+});
+
+document.getElementById('btnNumberCompetitors').addEventListener('click', ()=>{
+  // Group every entry by competitor (same person can be in multiple classes and must
+  // get the same number in each). Sort groups by the earliest show order across their
+  // entries, then by last name, then assign 1..N and stamp it onto every entry in the group.
+  const nameKey = c => `${(c.first||'').trim()}|${(c.last||'').trim()}`.toLowerCase();
+  const groups = {};
+  state.roster.forEach(c=>{
+    const k = nameKey(c);
+    if(!groups[k]) groups[k] = { last: c.last||'', minOrder: Infinity, rows: [] };
+    groups[k].rows.push(c);
+    groups[k].minOrder = Math.min(groups[k].minOrder, orderSortKey(c.sheetOrder));
+  });
+  const keys = Object.keys(groups).sort((a,b)=>
+    groups[a].minOrder - groups[b].minOrder ||
+    groups[a].last.localeCompare(groups[b].last)
+  );
+  keys.forEach((k,i)=>{ groups[k].rows.forEach(c=> c.athleteNum = i+1); });
+  renderRoster();
+  toast(`Numbered ${keys.length} unique competitors into Athlete Num — same number applied across all of a competitor's classes.`);
+});
+
+document.getElementById('btnSaveRoster').addEventListener('click', async ()=>{
+  if(guardWrite('would save Name/Division/Height/Weight/Shirt/Checked-in/AthleteNum to the sheet')) return;
+  try{
+    const m = state.mapping;
+    let heightWrites = 0;
+    const data = state.roster.flatMap(c=>{
+      const map = {
+        [m.colAthleteNum]: c.athleteNum,
+        [m.colFirst]: c.first,
+        [m.colLast]: c.last,
+        [m.colDivision]: c.division,
+        [m.colWeight]: c.weight,
+        [m.colShirt]: c.shirt,
+        [m.colCheckedIn]: c.checkedIn ? 'TRUE' : 'FALSE',
+      };
+      // Only write Height if it was actually edited (or this is a brand-new row with nothing to
+      // preserve) — otherwise leave whatever formula is already in that cell completely alone.
+      const heightChanged = c._origHeightIn === undefined || String(c.heightIn) !== String(c._origHeightIn);
+      if(heightChanged){ map[m.colHeight] = c.heightIn; heightWrites++; }
+      return sparseRowUpdates(m.regTab, c.row, map);
+    });
+    for(let i=0;i<data.length;i+=50) await sheetsBatchUpdateValues(data.slice(i,i+50));
+    state.roster.forEach(c=> c._origHeightIn = c.heightIn); // reset snapshot so an unchanged re-save doesn't touch M again
+    toast(`Registrations saved (Name/Division/Weight/Shirt/Checked-in/AthleteNum, plus Height on ${heightWrites} row(s) you actually changed). Everything else, including any Height formula you didn't touch, is left alone.`);
+  }catch(err){ toast(err.message, true); }
+});
+
+/* Generic sortable + resizable column behavior, attached after any table with th[data-key] renders.
+   auto layout + width:auto lets every column start at its natural content width; the wrapping
+   container scrolls horizontally instead of squeezing columns to fit. */
+function attachSortResize(table, dataArr, tableId, rerenderFn){
+  if(!table) return;
+  table.style.tableLayout = 'auto';
+  table.style.width = 'auto';
+  table.querySelectorAll('th[data-key]').forEach(th=>{
+    const key = th.dataset.key;
+    if(state.sortState.table===tableId && state.sortState.key===key){
+      const arrow = document.createElement('span');
+      arrow.className = 'sort-arrow';
+      arrow.textContent = state.sortState.dir===1 ? '▲' : '▼';
+      th.appendChild(arrow);
+    }
+    th.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('col-resizer')) return;
+      if(state.sortState.table===tableId && state.sortState.key===key) state.sortState.dir *= -1;
+      else state.sortState = {table:tableId, key, dir:1};
+      dataArr.sort((a,b)=>{
+        let av=a[key], bv=b[key];
+        const an=parseFloat(av), bn=parseFloat(bv);
+        if(!isNaN(an) && !isNaN(bn) && String(av).trim()!=='' && String(bv).trim()!==''){ av=an; bv=bn; }
+        else { av=String(av??'').toLowerCase(); bv=String(bv??'').toLowerCase(); }
+        return (av<bv ? -1 : av>bv ? 1 : 0) * state.sortState.dir;
+      });
+      rerenderFn();
+    });
+    const handle = document.createElement('span');
+    handle.className = 'col-resizer';
+    th.appendChild(handle);
+    handle.addEventListener('mousedown', (e)=>{
+      e.stopPropagation(); e.preventDefault();
+      const startX = e.clientX, startWidth = th.offsetWidth;
+      const colIndex = Array.from(th.parentElement.children).indexOf(th);
+      function onMove(ev){
+        const newWidth = Math.max(40, startWidth + (ev.clientX-startX));
+        th.style.width = newWidth + 'px';
+        // th width alone only sets the column's outer size — the input/select actually sitting
+        // inside each cell of that column needs its own width updated too, or it stays whatever
+        // size it rendered at (this is what made Division look "stuck" while other columns worked).
+        table.querySelectorAll('tbody tr').forEach(tr=>{
+          const td = tr.children[colIndex];
+          const field = td && td.querySelector('input, select');
+          if(field) field.style.width = Math.max(20, newWidth - 16) + 'px';
+        });
+      }
+      function onUp(){ document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+function divisionOptionsHtml(selected){
+  const divisions = knownDivisions();
+  const list = divisions.includes(selected) || !selected ? divisions : [selected, ...divisions];
+  return `<option value=""></option>` + list.map(d=>`<option value="${escAttr(d)}" ${d===selected?'selected':''}>${d}</option>`).join('');
+}
+
+function liveClassCellHtml(c, i){
+  const exp = expectedClass(c);
+  const cls = exp ? exp.cls : '—';
+  const order = exp ? exp.order : '—';
+  const mismatch = exp && !exp.skip && c.sheetClass && exp.cls !== c.sheetClass;
+  return `<td id="liveclass-${i}" class="${mismatch?'flag-warn':'readonly-val'}" style="padding:6px 8px">${cls}</td><td id="liveorder-${i}" class="readonly-val">${order}</td>`;
+}
+function refreshLiveClass(i){
+  const c = state.roster[i];
+  const exp = expectedClass(c);
+  const clsTd = document.getElementById(`liveclass-${i}`);
+  const orderTd = document.getElementById(`liveorder-${i}`);
+  if(!clsTd || !orderTd) return;
+  const cls = exp ? exp.cls : '—';
+  const mismatch = exp && !exp.skip && c.sheetClass && exp.cls !== c.sheetClass;
+  clsTd.textContent = cls;
+  clsTd.className = mismatch ? 'flag-warn' : 'readonly-val';
+  clsTd.title = mismatch ? `Sheet currently says "${c.sheetClass}" — will update to this once saved and the sheet recalculates.` : '';
+  orderTd.textContent = exp ? exp.order : '—';
+}
+
+function renderRoster(){
+  const wrap = document.getElementById('rosterTableWrap');
+  if(state.roster.length===0){
+    wrap.innerHTML = '<div class="empty"><div class="display">No registrations loaded</div>Click "Load registrations" above.</div>';
+    return;
+  }
+  wrap.style.overflowX = 'auto';
+  let html = `<table id="rosterTable"><thead><tr>
+    <th data-key="athleteNum">#</th><th data-key="first">First</th><th data-key="last">Last</th>
+    <th data-key="division">Division</th><th data-key="heightIn">Height (in)</th><th data-key="weight">Wt</th>
+    <th data-key="shirt">Shirt</th><th data-key="checkedIn">Checked-in</th>
+    <th data-key="sheetClass">Class (sheet)</th><th data-key="sheetOrder">Order (sheet)</th>
+    <th>Class (live)</th><th>Order (live)</th><th>Flags</th><th></th>
+  </tr></thead><tbody>`;
+  state.roster.forEach((c,i)=>{
+    html += `<tr>
+      <td><input type="text" class="mono" data-i="${i}" data-f="athleteNum" value="${escAttr(c.athleteNum)}" style="width:44px"></td>
+      <td><input type="text" data-i="${i}" data-f="first" value="${escAttr(c.first)}" style="width:90px"></td>
+      <td><input type="text" data-i="${i}" data-f="last" value="${escAttr(c.last)}" style="width:90px"></td>
+      <td><select class="division-select" data-i="${i}" data-f="division" style="width:170px">${divisionOptionsHtml(c.division)}</select></td>
+      <td><input type="text" data-i="${i}" data-f="heightIn" value="${escAttr(c.heightIn)}" style="width:55px"></td>
+      <td><input type="text" data-i="${i}" data-f="weight" value="${escAttr(c.weight)}" style="width:50px"></td>
+      <td><input type="text" data-i="${i}" data-f="shirt" value="${escAttr(c.shirt)}" style="width:50px"></td>
+      <td style="text-align:center"><input type="checkbox" data-i="${i}" data-f="checkedIn" ${c.checkedIn?'checked':''}></td>
+      <td class="readonly-val">${c.sheetClass||''}</td>
+      <td class="readonly-val">${c.sheetOrder||''}</td>
+      ${liveClassCellHtml(c,i)}
+      <td>${c.flags.map(f=>`<span class="flag flag-warn">${f}</span>`).join('')}</td>
+      <td style="white-space:nowrap"><button class="btn-ghost btn-sm" data-addclass="${i}" title="Enter this competitor in another class">+ Class</button> <button class="btn-danger btn-sm" data-remove-c="${i}">Remove</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('input[type=text]').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const i = +e.target.dataset.i, f = e.target.dataset.f;
+      state.roster[i][f] = e.target.value;
+      if(f==='heightIn' || f==='weight') refreshLiveClass(i);
+    });
+  });
+  wrap.querySelectorAll('input[type=checkbox]').forEach(inp=>{
+    inp.addEventListener('change', e=>{ state.roster[+e.target.dataset.i][e.target.dataset.f] = e.target.checked; });
+  });
+  wrap.querySelectorAll('select.division-select').forEach(sel=>{
+    sel.addEventListener('change', e=>{
+      const i = +e.target.dataset.i;
+      state.roster[i].division = e.target.value;
+      refreshLiveClass(i);
+    });
+  });
+  wrap.querySelectorAll('[data-remove-c]').forEach(b=>{
+    b.addEventListener('click', e=>{
+      if(confirm('Remove this competitor from the working roster? (Save to sheet to make it permanent.)')){
+        state.roster.splice(+e.target.dataset.removeC,1);
+        renderRoster();
+      }
+    });
+  });
+  wrap.querySelectorAll('[data-addclass]').forEach(b=>{
+    b.addEventListener('click', e=>{
+      const src = state.roster[+e.target.dataset.addclass];
+      const nextRow = Math.max(...state.roster.map(c=>c.row))+1;
+      state.roster.push({
+        row: nextRow, athleteNum: src.athleteNum, first: src.first, last: src.last, email: src.email,
+        division: '', heightIn: src.heightIn, weight: src.weight, shirt: src.shirt, checkedIn: src.checkedIn,
+        sheetClass: '', sheetOrder: '', total: '', flags: []
+      });
+      renderRoster();
+      toast(`Added ${src.first} ${src.last} to a new class row — pick their division below.`);
+    });
+  });
+  attachSortResize(document.getElementById('rosterTable'), state.roster, 'roster', renderRoster);
+}
+document.getElementById('btnAddCompetitor').addEventListener('click', ()=>{
+  const nextRow = state.roster.length ? Math.max(...state.roster.map(c=>c.row))+1 : 2;
+  state.roster.push({row:nextRow, athleteNum:'', first:'', last:'', email:'', division:'', heightIn:'', weight:'', shirt:'', checkedIn:false, sheetClass:'', sheetOrder:'', total:'', flags:[]});
+  renderRoster();
+});
+
+/* ---------------- Scoring (writes Judge, Total & Rank in Class columns — scoped per class) ----------------
+   The dropdown at the top picks a Division. Everything below is grouped into one section per Class within
+   that division — scoring, validation (1..N placements), totals, and ranking all stay scoped to a single
+   class's competitors and never mix across classes, even though several classes are on screen together. */
+function populateScoringClasses(){
+  const sel = document.getElementById('scoringClassSelect');
+  const groups = groupCheckinByDivision();
+  const divKeys = Object.keys(groups).sort((a,b)=> divisionSortKey(a)-divisionSortKey(b));
+  sel.innerHTML = divKeys.length ? divKeys.map(d=>`<option>${d}</option>`).join('') : '<option>No checked-in divisions yet — load registrations</option>';
+}
+let scoringGroups = []; // [{ cls, rows: [...] }, ...] — one entry per class within the selected division
+document.getElementById('btnLoadScoring').addEventListener('click', ()=>{
+  const divKey = document.getElementById('scoringClassSelect').value;
+  const classGroups = groupCheckinByDivision()[divKey] || {};
+  const clsKeys = Object.keys(classGroups).sort((a,b)=>
+    classSortKey(splitSheetClass(a).cls) - classSortKey(splitSheetClass(b).cls)
+  );
+  // Checked-in only (groupCheckinByDivision already filters that), always ordered by Athlete Num within each class.
+  scoringGroups = clsKeys.map(clsKey=>({
+    cls: splitSheetClass(clsKey).cls || clsKey,
+    rows: classGroups[clsKey].slice().sort((a,b)=> (parseFloat(a.athleteNum)||0) - (parseFloat(b.athleteNum)||0))
+  }));
+  document.getElementById('rankingPanel').style.display = 'none';
+  renderScoring(state.mapping.judgeCount);
+});
+
+/* A valid placement is 1..N (N = competitors in THIS class) with no repeats within a judge's
+   column, or 999 to exclude that competitor from this judge's ranking. Scoped to one class group. */
+function validateScoreCell(groupIdx, judgeIdx, judgeCount){
+  const rows = scoringGroups[groupIdx] ? scoringGroups[groupIdx].rows : [];
+  const n = rows.length;
+  const seen = {};
+  let ok = true;
+  rows.forEach((c,i)=>{
+    const raw = c['j'+judgeIdx];
+    const el = document.querySelector(`input[data-g="${groupIdx}"][data-i="${i}"][data-j="${judgeIdx}"]`);
+    if(!el) return;
+    let bad = false;
+    if(raw !== '' && raw != null){
+      const v = parseInt(raw,10);
+      if(isNaN(v)) bad = true;
+      else if(v === 999){ /* valid: excluded */ }
+      else if(v < 1 || v > n) bad = true;
+      else if(seen[v]) bad = true;
+      else seen[v] = true;
+    }
+    el.classList.toggle('input-invalid', bad);
+    if(bad) ok = false;
+  });
+  return ok;
+}
+
+function renderScoring(judgeCount){
+  const wrap = document.getElementById('scoringTableWrap');
+  if(scoringGroups.length===0 || scoringGroups.every(g=>g.rows.length===0)){
+    wrap.innerHTML = '<div class="empty"><div class="display">No checked-in competitors in this division</div></div>';
+    return;
+  }
+  let html = '';
+  scoringGroups.forEach((g,gi)=>{
+    if(g.rows.length===0) return;
+    html += `<h3 class="display" style="font-size:19px; margin:${gi===0?'0':'24px'} 0 10px 0">${g.cls}</h3>`;
+    html += '<table><thead><tr><th>#</th><th>Name</th>';
+    // Every judge column up to the sheet's mapped judge count is always built (data survives even
+    // when "Number of judges today" hides a column) — data-judgecol is what applyJudgeVisibility()
+    // toggles, not this loop.
+    for(let j=1;j<=judgeCount;j++) html += `<th data-judgecol="${j}">J${j}</th>`;
+    html += '<th>Total</th></tr></thead><tbody>';
+    g.rows.forEach((c,i)=>{
+      html += `<tr><td><span class="bib">${c.athleteNum||'-'}</span></td><td>${c.first} ${c.last}</td>`;
+      for(let j=1;j<=judgeCount;j++) html += `<td data-judgecol="${j}"><input type="number" class="mono" style="width:55px" data-g="${gi}" data-i="${i}" data-j="${j}" value="${c['j'+j]||''}"></td>`;
+      html += `<td class="mono" id="total-${gi}-${i}">0</td></tr>`;
+    });
+    html += '</tbody></table>';
+  });
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const g=+e.target.dataset.g, i=+e.target.dataset.i, j=+e.target.dataset.j;
+      scoringGroups[g].rows[i]['j'+j] = e.target.value;
+      let total=0; for(let k=1;k<=judgeCount;k++){ const v=parseFloat(scoringGroups[g].rows[i]['j'+k]); if(!isNaN(v) && v!==999) total+=v; }
+      document.getElementById(`total-${g}-${i}`).textContent = total;
+      validateScoreCell(g, j, judgeCount);
+    });
+    inp.addEventListener('keydown', e=>{
+      if(e.key !== 'Enter') return;
+      e.preventDefault();
+      const g=+e.target.dataset.g, i=+e.target.dataset.i, j=+e.target.dataset.j;
+      const rows = scoringGroups[g].rows;
+      let nextI = i+1, nextJ = j;
+      if(nextI >= rows.length){ nextI = 0; nextJ = j+1; }
+      if(nextJ > judgeCount) return; // last cell of this class's last column — nowhere further to go
+      const next = document.querySelector(`input[data-g="${g}"][data-i="${nextI}"][data-j="${nextJ}"]`);
+      if(next){ next.focus(); next.select(); }
+    });
+  });
+  // Real totals (and validation) for whatever scores were already on these rows when loaded —
+  // without this, a class reopened with existing scores would show "0" until each row was touched.
+  recalcAllTotals();
+  applyJudgeVisibility();
+}
+
+/* Hides judge columns beyond "Number of judges today" — header cell and every row's cell share a
+   data-judgecol index, so toggling display on all of them collapses the whole column at once.
+   Purely visual: hidden columns keep whatever score they already held, and reappear untouched if the
+   count is raised again. Clamped to the sheet's actual mapped judge count (can't show more than exist). */
+function applyJudgeVisibility(){
+  const max = state.mapping.judgeCount;
+  let n = parseInt(document.getElementById('scoringJudgeCount').value, 10);
+  if(isNaN(n) || n < 1) n = max;
+  n = Math.min(Math.max(n,1), max);
+  document.querySelectorAll('#scoringTableWrap [data-judgecol]').forEach(el=>{
+    el.style.display = (+el.dataset.judgecol <= n) ? '' : 'none';
+  });
+}
+document.getElementById('scoringJudgeCount').addEventListener('input', applyJudgeVisibility);
+
+/* Recomputes every visible Total cell and re-validates every judge column, across all classes in the
+   loaded division — for scores that were already sitting on a class/division when you loaded it
+   (freshly pulled from the sheet, or left over from earlier in this session) rather than just-typed,
+   since the Total cell otherwise only updates on the 'input' event of the cell you're editing. */
+function recalcAllTotals(){
+  const judgeCount = state.mapping.judgeCount;
+  scoringGroups.forEach((g,gi)=>{
+    g.rows.forEach((c,i)=>{
+      let total=0; for(let k=1;k<=judgeCount;k++){ const v=parseFloat(c['j'+k]); if(!isNaN(v) && v!==999) total+=v; }
+      const cell = document.getElementById(`total-${gi}-${i}`);
+      if(cell) cell.textContent = total;
+    });
+    for(let j=1;j<=judgeCount;j++) validateScoreCell(gi, j, judgeCount);
+  });
+  if(document.getElementById('rankingPanel').style.display !== 'none') renderRanking();
+}
+document.getElementById('btnRecalcTotals').addEventListener('click', ()=>{
+  if(scoringGroups.length===0){ toast('Load a division first.', true); return; }
+  recalcAllTotals();
+  applyJudgeVisibility();
+  toast('Totals recalculated.');
+});
+
+document.getElementById('btnSaveScores').addEventListener('click', async ()=>{
+  const judgeCount = state.mapping.judgeCount;
+  let allValid = true;
+  scoringGroups.forEach((g,gi)=>{ for(let j=1;j<=judgeCount;j++) if(!validateScoreCell(gi, j, judgeCount)) allValid = false; });
+  if(!allValid){ toast('Some scores are invalid — each judge needs 1..N (N = competitors in that class) with no repeats, or 999 to exclude. Fix the highlighted cells first.', true); return; }
+  if(guardWrite('would save these judge scores, totals, and class ranks to the sheet')) return;
+  try{
+    const m = state.mapping;
+    const judgeCols = Array.from({length:m.judgeCount}, (_,i)=> idxToCol(colToIdx(m.colJudgeStart)+i));
+    const data = [];
+    scoringGroups.forEach(g=>{
+      // Total and Rank are computed within this class only — never across the whole division.
+      const withTotal = g.rows.map(c=>({c, total: totalOf(c)}));
+      const ranked = withTotal.filter(x=>x.total!==null).sort((a,b)=> a.total-b.total);
+      const placeOf = new Map(ranked.map((x,i)=>[x.c, i+1]));
+      withTotal.forEach(x=>{
+        const map = {};
+        judgeCols.forEach((jc,idx)=> map[jc] = x.c['j'+(idx+1)] || '');
+        map[m.colTotal] = x.total;
+        map[m.colRank] = placeOf.get(x.c) || '';
+        data.push(...sparseRowUpdates(m.regTab, x.c.row, map));
+      });
+    });
+    for(let i=0;i<data.length;i+=50) await sheetsBatchUpdateValues(data.slice(i,i+50));
+    toast('Scores saved — Judge columns, Total, and Rank in Class (each computed within its own class).');
+  }catch(err){ toast(err.message, true); }
+});
+
+/* ---------------- Ranking view (sortable, flags ties, honors 999 exclusions) — one panel per class ---------------- */
+let rankingSort = { key:'place', dir:1 };
+function computeRanking(rows){
+  const judgeCount = state.mapping.judgeCount;
+  const items = rows.map(c=>{
+    const placements = [];
+    for(let k=1;k<=judgeCount;k++){ const v=parseFloat(c['j'+k]); if(!isNaN(v)) placements.push(v); }
+    const excluded = placements.some(v=>v===999);
+    const total = excluded ? null : placements.reduce((s,v)=>s+v,0);
+    return { athleteNum:c.athleteNum, name:`${c.first} ${c.last}`, total, excluded };
+  });
+  const ranked = items.filter(r=>!r.excluded).sort((a,b)=> a.total-b.total);
+  ranked.forEach((r,i)=>{ r.place = i+1; });
+  // flag ties: same total as neighbor
+  ranked.forEach((r,i)=>{
+    r.tie = (i>0 && ranked[i-1].total===r.total) || (i<ranked.length-1 && ranked[i+1].total===r.total);
+  });
+  const excludedRows = items.filter(r=>r.excluded).map(r=>({...r, place:null, tie:false}));
+  return [...ranked, ...excludedRows];
+}
+function renderRanking(){
+  const panel = document.getElementById('rankingPanel');
+  let html = '';
+  scoringGroups.forEach((g,gi)=>{
+    if(g.rows.length===0) return;
+    let rows = computeRanking(g.rows);
+    rows.sort((a,b)=>{
+      let av=a[rankingSort.key], bv=b[rankingSort.key];
+      if(av===null) return 1; if(bv===null) return -1;
+      const an=parseFloat(av), bn=parseFloat(bv);
+      if(!isNaN(an) && !isNaN(bn)){ av=an; bv=bn; } else { av=String(av||'').toLowerCase(); bv=String(bv||'').toLowerCase(); }
+      return (av<bv?-1:av>bv?1:0) * rankingSort.dir;
+    });
+    html += `<h3>${g.cls} — Ranking (unsaved — from scores currently on screen)</h3><table id="rankingTable-${gi}"><thead><tr>
+      <th data-key="place">Place</th><th data-key="athleteNum">#</th><th data-key="name">Name</th><th data-key="total">Total</th><th>Flag</th>
+    </tr></thead><tbody>`;
+    rows.forEach(r=>{
+      html += `<tr>
+        <td>${r.place ?? '—'}</td><td>${r.athleteNum||''}</td><td>${r.name}</td><td>${r.total ?? 'excluded'}</td>
+        <td>${r.tie ? '<span class="flag flag-tie">TIE</span>' : (r.excluded ? '<span class="flag flag-warn">Excluded (999)</span>' : '')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  });
+  panel.innerHTML = html || '<div class="empty">No checked-in competitors in this division.</div>';
+  panel.style.display = '';
+  scoringGroups.forEach((g,gi)=>{
+    if(g.rows.length===0) return;
+    attachSortResize(document.getElementById(`rankingTable-${gi}`), [], `ranking-${gi}`, renderRanking);
+  });
+}
+document.getElementById('btnShowRanking').addEventListener('click', ()=>{
+  if(scoringGroups.length===0){ toast('Load a division first.', true); return; }
+  renderRanking();
+});
+
+/* ---------------- Reports (print) ---------------- */
+function groupByDivClass(includeAll){
+  const grouped = {};
+  state.roster.filter(c=> includeAll || c.checkedIn).forEach(c=>{
+    const key = c.sheetClass || `${c.division} (unassigned)`;
+    (grouped[key] = grouped[key] || []).push(c);
+  });
+  return grouped;
+}
+function orderOfClass(key){
+  const c = state.roster.find(c=>c.sheetClass===key);
+  return c ? orderSortKey(c.sheetOrder) : 9999;
+}
+/* Splits a full sheet Class value ("Men's - Bodybuilding - Masters") into its Division and Class parts. */
+function splitSheetClass(sheetClass){
+  const parts = String(sheetClass||'').split(' - ');
+  if(parts.length<2) return { division: sheetClass||'', cls:'' };
+  return { division: parts.slice(0,-1).join(' - '), cls: parts[parts.length-1] };
+}
+function divisionOf(key){ return splitSheetClass(key).division; }
+/* Groups checked-in competitors by Division, then by Class within that division — used specifically
+   for the Check-In report's one-division-per-page layout. Transformation is merged into a single
+   group regardless of gender prefix, since it must always stay together as the explicit exception
+   to "no two divisions share a page". */
+function groupCheckinByDivision(){
+  const groups = {};
+  state.roster.filter(c=>c.checkedIn).forEach(c=>{
+    const {division} = splitSheetClass(c.sheetClass);
+    let divKey = division || `${c.division} (unassigned)`;
+    if(/transformation/i.test(divKey)) divKey = 'Transformation';
+    const clsKey = c.sheetClass || `${c.division} (unassigned)`;
+    if(!groups[divKey]) groups[divKey] = {};
+    if(!groups[divKey][clsKey]) groups[divKey][clsKey] = [];
+    groups[divKey][clsKey].push(c);
+  });
+  return groups;
+}
+function divisionSortKey(divisionText){
+  if(divisionText==='Transformation'){
+    const matches = state.divOrder.filter(x=>/transformation/i.test(x.division));
+    return matches.length ? Math.min(...matches.map(x=>x.order)) : 9999;
+  }
+  const d = state.divOrder.find(x=>x.division===divisionText);
+  return d ? d.order : 9999;
+}
+/* Teen and Masters print first within their division, ahead of the regular A/B/C/D-style classes,
+   regardless of where they'd normally fall in the Setup class-order table. */
+function classSortKey(clsName){
+  const name = String(clsName||'').trim().toLowerCase();
+  if(name==='teen') return -2;
+  if(name==='masters') return -1;
+  const idx = state.classOrder.findIndex(x=> String(x.cls||'').trim().toLowerCase()===name);
+  return idx===-1 ? 9999 : idx;
+}
+/* Sum of judge placements, excluding any 999 ("not ranked") entries; null total means fully excluded. */
+function totalOf(c){
+  let t=0, any=false, excluded=false;
+  for(let k=1;k<=state.mapping.judgeCount;k++){
+    const v = parseFloat(c['j'+k]);
+    if(isNaN(v)) continue;
+    any = true;
+    if(v===999){ excluded=true; continue; }
+    t += v;
+  }
+  return excluded ? null : (any ? t : 0);
+}
+/* Letterhead + division eyebrow shown at the top of every printed page, matching the layout of
+   your original Power BI paginated reports (show name, report name, and a Division heading).
+   `divisionLabel` is the text to show in the eyebrow directly — pass '' to omit it. */
+function printHeader(reportName, divisionLabel){
+  const showName = state.config.showName || '';
+  const dateStr = new Date().toLocaleDateString();
+  return `<div class="print-letterhead">
+      <span class="show-name">${showName}</span>
+      <span class="print-date">${reportName} — printed ${dateStr}</span>
+    </div>
+    ${divisionLabel ? `<p class="print-eyebrow">${divisionLabel}</p>` : ''}`;
+}
+
+/* Renders generated report HTML into the always-visible preview card and reveals the Print button. */
+function showReport(label, html){
+  const preview = document.getElementById('reportPreview');
+  const empty = !html || !html.trim();
+  preview.innerHTML = empty ? '' : html;
+  document.getElementById('reportPreviewLabel').textContent = empty
+    ? 'No data for this report — load registrations first.'
+    : label;
+  document.getElementById('btnPrintCurrentReport').style.display = empty ? 'none' : '';
+  document.getElementById('reportPreviewCard').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+document.getElementById('btnPrintCurrentReport').addEventListener('click', ()=> window.print());
+
+document.getElementById('btnPrintAthletes').addEventListener('click', ()=>{
+  const seen = new Set();
+  const rows = state.roster.filter(c=>c.checkedIn).filter(c=>{
+    const k = `${c.first}|${c.last}`.toLowerCase();
+    if(seen.has(k)) return false; seen.add(k); return true;
+  }).sort((a,b)=> (+a.athleteNum||0)-(+b.athleteNum||0));
+  let html = rows.length ? `<div class="print-sheet">${printHeader('Athletes')}<h2>Athletes</h2><table><thead><tr><th>#</th><th>Last name</th><th>First name</th><th>Email</th></tr></thead><tbody>` : '';
+  rows.forEach(c=> html += `<tr><td>${c.athleteNum||''}</td><td>${c.last}</td><td>${c.first}</td><td>${c.email||''}</td></tr>`);
+  if(rows.length) html += '</tbody></table></div>';
+  showReport(`Athletes — ${rows.length} checked-in competitor(s)`, html);
+});
+
+document.getElementById('btnPrintCheckins').addEventListener('click', ()=>{
+  const groups = groupCheckinByDivision();
+  const divKeys = Object.keys(groups).sort((a,b)=> divisionSortKey(a)-divisionSortKey(b));
+  let html = '';
+  divKeys.forEach(divKey=>{
+    const classGroups = groups[divKey];
+    const classKeys = Object.keys(classGroups).sort((a,b)=>
+      classSortKey(splitSheetClass(a).cls) - classSortKey(splitSheetClass(b).cls)
+    );
+    html += `<div class="checkin-division">${printHeader('Check-In Sheet', divKey)}`;
+    classKeys.forEach(clsKey=>{
+      const clsName = splitSheetClass(clsKey).cls || clsKey;
+      html += `<div class="checkin-class"><h2>${clsName}</h2><table><thead><tr>
+        <th>#</th><th>First</th><th>Last</th><th>Size</th><th>Height (in)</th><th>Weight</th><th>Actual Ht.</th><th>Actual Wt.</th><th>Photo</th><th>Video</th>
+      </tr></thead><tbody>`;
+      classGroups[clsKey].forEach(c=>{
+        html += `<tr><td>${c.athleteNum||''}</td><td>${c.first}</td><td>${c.last}</td><td>${c.shirt||''}</td>
+          <td>${c.heightIn||''}</td><td>${c.weight||''}</td>
+          <td>&nbsp;</td><td>&nbsp;</td><td><span class="checkbox"></span></td><td><span class="checkbox"></span></td></tr>`;
+      });
+      html += '</tbody></table></div>';
+    });
+    html += '</div>';
+  });
+  showReport(`Check-In Sheet — ${divKeys.length} division(s)`, html);
+});
+
+document.getElementById('btnPrintNotCheckedIn').addEventListener('click', ()=>{
+  const rows = state.roster.filter(c=>!c.checkedIn).sort((a,b)=> (+a.athleteNum||0)-(+b.athleteNum||0));
+  let html = rows.length ? `<div class="print-sheet">${printHeader('Not Checked In')}<h2>Not Checked In</h2><table><thead><tr><th>#</th><th>First</th><th>Last</th><th>Division</th><th>Class (sheet)</th></tr></thead><tbody>` : '';
+  rows.forEach(c=> html += `<tr><td>${c.athleteNum||''}</td><td>${c.first}</td><td>${c.last}</td><td>${c.division||''}</td><td>${c.sheetClass||''}</td></tr>`);
+  if(rows.length) html += '</tbody></table></div>';
+  showReport(`Not Checked In — ${rows.length} competitor(s)`, html);
+});
+
+document.getElementById('btnPrintShowOrder').addEventListener('click', ()=>{
+  const grouped = groupByDivClass();
+  const keys = Object.keys(grouped).sort((a,b)=>orderOfClass(a)-orderOfClass(b));
+  let html = '';
+  keys.forEach(k=>{
+    html += `<div class="print-sheet">${printHeader('Show Order', divisionOf(k))}<h2>${splitSheetClass(k).cls || k} (${grouped[k].length})</h2><table><thead><tr><th>#</th><th>Name</th><th>Order code</th></tr></thead><tbody>`;
+    grouped[k].forEach(c=> html += `<tr><td>${c.athleteNum||''}</td><td>${c.first} ${c.last}</td><td>${c.sheetOrder||''}</td></tr>`);
+    html += '</tbody></table></div>';
+  });
+  showReport(`Show Order — ${keys.length} class(es)`, html);
+});
+
+document.getElementById('btnPrintScoreCard').addEventListener('click', ()=>{
+  const grouped = groupByDivClass();
+  const keys = Object.keys(grouped).sort((a,b)=>orderOfClass(a)-orderOfClass(b));
+  let html = '';
+  keys.forEach(k=>{
+    const isTransform = /transform/i.test(k);
+    const criteria = isTransform ? ['Video','Story','Compare'] : ['Symmetry','Muscularity','Condition'];
+    html += `<div class="print-sheet">${printHeader('Judges Score Card', divisionOf(k))}<h2>${splitSheetClass(k).cls || k} (${grouped[k].length})</h2>`;
+    grouped[k].forEach(c=>{
+      html += `<div class="score-card"><h4>#${c.athleteNum||''} — ${c.first} ${c.last}</h4>`;
+      criteria.forEach(crit=> html += `<div class="score-row"><span>${crit}</span><span>Stage: ______&nbsp;&nbsp;&nbsp;Score: ______</span></div>`);
+      html += `<div class="score-row"><span>Comments</span><span>____________________________</span></div></div>`;
+    });
+    html += '</div>';
+  });
+  showReport(`Judges Score Card — ${keys.length} class(es)`, html);
+});
+
+document.getElementById('btnPrintResults').addEventListener('click', ()=>{
+  const grouped = groupByDivClass();
+  const keys = Object.keys(grouped).sort((a,b)=>orderOfClass(a)-orderOfClass(b));
+  let html = '';
+  keys.forEach(k=>{
+    const withTotal = grouped[k].map(c=>({c, total: totalOf(c)}));
+    const ranked = withTotal.filter(x=>x.total!==null).sort((a,b)=> a.total-b.total);
+    const excluded = withTotal.filter(x=>x.total===null);
+    html += `<div class="print-sheet">${printHeader('Final Results', divisionOf(k))}<h2>${splitSheetClass(k).cls || k}</h2><p class="print-sub">Lower total placement score wins, per standard judging. Rows marked TIE share the same total.</p><table><thead><tr><th>Place</th><th>#</th><th>Name</th><th>Total</th><th></th></tr></thead><tbody>`;
+    ranked.forEach((x,i)=>{
+      const tie = (i>0 && ranked[i-1].total===x.total) || (i<ranked.length-1 && ranked[i+1].total===x.total);
+      html += `<tr><td>${i+1}</td><td>${x.c.athleteNum||''}</td><td>${x.c.first} ${x.c.last}</td><td>${x.total}</td><td>${tie?'TIE':''}</td></tr>`;
+    });
+    excluded.forEach(x=> html += `<tr><td>—</td><td>${x.c.athleteNum||''}</td><td>${x.c.first} ${x.c.last}</td><td>excluded (999)</td><td></td></tr>`);
+    html += '</tbody></table></div>';
+  });
+  showReport(`Final Results — ${keys.length} class(es)`, html);
+});
+
+/* ---------------- Dashboard ---------------- */
+function renderDashboard(){
+  const wrap = document.getElementById('dashboardWrap');
+  if(state.roster.length===0){
+    wrap.innerHTML = '<div class="empty"><div class="display">No data loaded</div>Load registrations in the Registrations tab, then come back here.</div>';
+    return;
+  }
+  const total = state.roster.length;
+  const unique = new Set(state.roster.map(c=>`${c.first}|${c.last}`.toLowerCase())).size;
+  const flagged = state.roster.filter(c=>c.flags && c.flags.length).length;
+  const divisions = {};
+  state.roster.forEach(c=>{ const d=c.division||'(none)'; divisions[d]=(divisions[d]||0)+1; });
+  const maxCount = Math.max(...Object.values(divisions));
+  let html = `<div class="stat-grid">
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Total entries</div></div>
+    <div class="stat-card"><div class="stat-num">${unique}</div><div class="stat-label">Unique competitors</div></div>
+    <div class="stat-card"><div class="stat-num">${Object.keys(divisions).length}</div><div class="stat-label">Divisions</div></div>
+    <div class="stat-card"><div class="stat-num">${flagged}</div><div class="stat-label">Rows flagged</div></div>
+  </div><div class="card"><h3>Entries by division</h3>`;
+  Object.entries(divisions).sort((a,b)=>b[1]-a[1]).forEach(([name,count])=>{
+    html += `<div class="bar-row"><div class="bar-label">${name}</div><div class="bar-track"><div class="bar-fill" style="width:${(count/maxCount*100)}%"></div></div><div class="bar-count">${count}</div></div>`;
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+</script>
+</body>
+</html>
